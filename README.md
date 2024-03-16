@@ -10,7 +10,10 @@ These instructions will get you a copy of the project up and running on your loc
 
 ## Usage
 
-The application can be run in two modes: seed and bruteforce.
+1. Download the [collatz.zip](/raw/main/collatz.zip) file from the repository.
+2. Extract the `collatz.zip` file to get the `collatz` binary.
+3. Open a terminal and navigate to the directory containing the `collatz` binary.
+4. Run the binary with the desired mode (seed or bruteforce) and the necessary arguments.
 
 ### Calculate the Collatz Conjecture
 

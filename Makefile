@@ -4,10 +4,9 @@ GOCMD=go
 GOTEST=$(GOCMD) test
 GOVET=$(GOCMD) vet
 BINARY_NAME=collatz
+BINARY_DIR=jfallis/collatz
 VERSION?=1.0.0
-SERVICE_PORT?=3000
-DOCKER_REGISTRY?= #if set it should finished by /
-EXPORT_RESULT?=false # for CI please set EXPORT_RESULT to true
+EXPORT_RESULT?=false
 
 GREEN  := $(shell tput -Txterm setaf 2)
 YELLOW := $(shell tput -Txterm setaf 3)
@@ -25,7 +24,13 @@ vendor: ## Install the dependencies
 
 build: vendor ## Build the project and put the output binary in out/bin/
 	mkdir -p out/bin
-	$(GOCMD) build -mod vendor -o out/bin/$(BINARY_NAME) .
+	GOOS=windows GOARCH=amd64 go build -o $(BINARY_DIR)/$(BINARY_NAME)-windows.exe
+	GOOS=darwin GOARCH=amd64 go build -o $(BINARY_DIR)/$(BINARY_NAME)-amd64-macos
+	GOOS=darwin GOARCH=arm64 go build -o $(BINARY_DIR)/$(BINARY_NAME)-arm64-macos
+	GOOS=linux GOARCH=amd64 go build -o $(BINARY_DIR)/$(BINARY_NAME)-linux
+	zip -r collatz.zip $(BINARY_DIR)
+
+	$(GOCMD) build -mod vendor -o $(BINARY_DIR)/$(BINARY_NAME) .
 
 clean: ## Remove build related files
 	rm -fr ./bin
