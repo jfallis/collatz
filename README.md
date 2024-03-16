@@ -10,10 +10,10 @@ These instructions will get you a copy of the project up and running on your loc
 
 ## Usage
 
-1. Download the [collatz.zip](/raw/main/collatz.zip) file from the repository.
-2. Extract the `collatz.zip` file to get the `collatz` binary.
-3. Open a terminal and navigate to the directory containing the `collatz` binary.
-4. Run the binary with the desired mode (seed or bruteforce) and the necessary arguments.
+1. Download the [collatz.zip](https://raw.githubusercontent.com/jfallis/collatz/main/collatz.zip) file from the repository.
+1. Extract the `collatz.zip` file to get the `collatz` binary.
+1. Open a terminal and navigate to the directory containing the `collatz` binary.
+1. Run the binary with the desired mode (seed or bruteforce) and the necessary arguments.
 
 ### Calculate the Collatz Conjecture
 
@@ -53,9 +53,9 @@ Example:
 ## Installation
 
 1. Ensure you have Go version 1.22 or higher installed on your machine.
-2. Clone the repository to your local machine.
-3. Navigate to the project directory.
-4. Run `go mod download` to download the necessary dependencies.
+1. Clone the repository to your local machine.
+1. Navigate to the project directory.
+1. Run `go mod download` to download the necessary dependencies.
 
 ## Building the Application
 
