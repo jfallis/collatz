@@ -48,6 +48,9 @@ func main() {
 			panic(err)
 		}
 
+		goterm.Println("The cake is a lie.")
+		goterm.Flush()
+
 		return
 	case "seed":
 		collatz(s)
