@@ -20,7 +20,10 @@ RESET  := $(shell tput -Txterm sgr0)
 all: help
 
 ## Build:
-build: ## Build the project and put the output binary in out/bin/
+vendor: ## Install the dependencies
+	$(GOCMD) mod vendor
+
+build: vendor ## Build the project and put the output binary in out/bin/
 	mkdir -p out/bin
 	$(GOCMD) build -mod vendor -o out/bin/$(BINARY_NAME) .
 
@@ -30,6 +33,9 @@ clean: ## Remove build related files
 	rm -f ./junit-report.xml checkstyle-report.xml ./coverage.xml ./profile.cov yamllint-checkstyle.xml
 
 ## Test:
+lint: ## golang linting
+	golangci-lint run
+
 test: ## Run the tests
 ifeq ($(EXPORT_RESULT), true)
 	go get -u github.com/jstemmer/go-junit-report
@@ -37,13 +43,13 @@ ifeq ($(EXPORT_RESULT), true)
 endif
 	$(GOTEST) -v -race ./... $(OUTPUT_OPTIONS)
 
+bench: ## Run the benchmarks
+	$(GOTEST) -v -bench=. ./...
+
 coverage: ## Run the tests and export the coverage
-	$(GOTEST) -cover -covermode=count -coverprofile=profile.cov ./...
+	$(GOTEST) -cover -coverprofile=profile.cov ./...
 	$(GOCMD) tool cover -func profile.cov
 
-## Lint:
-lint: ## golang linting
-	golangci-lint run
 ## Help:
 help: ## Show this help.
 	@echo ''

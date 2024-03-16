@@ -1,7 +1,7 @@
 package collatz_test
 
 import (
-	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/jfallis/collatz/pkg/collatz"
@@ -10,23 +10,42 @@ import (
 )
 
 type testValues struct {
-	number         uint64
-	steps          []uint64
+	number         *big.Int
+	steps          []*big.Int
 	totalStepCount int
 }
 
 var (
-	testVal0  = testValues{0, []uint64{}, 0}
-	testVal1  = testValues{1, []uint64{4, 2, 1}, 3}
-	testVal2  = testValues{2, []uint64{1}, 1}
-	testVal7  = testValues{7, []uint64{22, 11, 34, 17, 52, 26, 13, 40, 20, 10, 5, 16, 8, 4, 2, 1}, 16}
-	testVal27 = testValues{27, []uint64{
-		82, 41, 124, 62, 31, 94, 47, 142, 71, 214, 107, 322, 161, 484, 242, 121, 364, 182, 91, 274, 137,
-		412, 206, 103, 310, 155, 466, 233, 700, 350, 175, 526, 263, 790, 395, 1186, 593, 1780, 890, 445,
-		1336, 668, 334, 167, 502, 251, 754, 377, 1132, 566, 283, 850, 425, 1276, 638, 319, 958, 479, 1438,
-		719, 2158, 1079, 3238, 1619, 4858, 2429, 7288, 3644, 1822, 911, 2734, 1367, 4102, 2051, 6154, 3077,
-		9232, 4616, 2308, 1154, 577, 1732, 866, 433, 1300, 650, 325, 976, 488, 244, 122, 61, 184, 92, 46,
-		23, 70, 35, 106, 53, 160, 80, 40, 20, 10, 5, 16, 8, 4, 2, 1,
+	testVal0 = testValues{big.NewInt(0), []*big.Int{},
+		0}
+	testVal1 = testValues{big.NewInt(1), []*big.Int{big.NewInt(4), big.NewInt(2), big.NewInt(1)},
+		3}
+	testVal2 = testValues{big.NewInt(2), []*big.Int{big.NewInt(1)}, 1}
+	testVal7 = testValues{big.NewInt(7), []*big.Int{
+		big.NewInt(22), big.NewInt(11), big.NewInt(34), big.NewInt(17), big.NewInt(52), big.NewInt(26),
+		big.NewInt(13), big.NewInt(40), big.NewInt(20), big.NewInt(10), big.NewInt(5), big.NewInt(16),
+		big.NewInt(8), big.NewInt(4), big.NewInt(2), big.NewInt(1)},
+		16}
+	testVal27 = testValues{big.NewInt(27), []*big.Int{
+		big.NewInt(82), big.NewInt(41), big.NewInt(124), big.NewInt(62), big.NewInt(31), big.NewInt(94),
+		big.NewInt(47), big.NewInt(142), big.NewInt(71), big.NewInt(214), big.NewInt(107), big.NewInt(322),
+		big.NewInt(161), big.NewInt(484), big.NewInt(242), big.NewInt(121), big.NewInt(364), big.NewInt(182),
+		big.NewInt(91), big.NewInt(274), big.NewInt(137), big.NewInt(412), big.NewInt(206), big.NewInt(103),
+		big.NewInt(310), big.NewInt(155), big.NewInt(466), big.NewInt(233), big.NewInt(700), big.NewInt(350),
+		big.NewInt(175), big.NewInt(526), big.NewInt(263), big.NewInt(790), big.NewInt(395), big.NewInt(1186),
+		big.NewInt(593), big.NewInt(1780), big.NewInt(890), big.NewInt(445), big.NewInt(1336), big.NewInt(668),
+		big.NewInt(334), big.NewInt(167), big.NewInt(502), big.NewInt(251), big.NewInt(754), big.NewInt(377),
+		big.NewInt(1132), big.NewInt(566), big.NewInt(283), big.NewInt(850), big.NewInt(425), big.NewInt(1276),
+		big.NewInt(638), big.NewInt(319), big.NewInt(958), big.NewInt(479), big.NewInt(1438), big.NewInt(719),
+		big.NewInt(2158), big.NewInt(1079), big.NewInt(3238), big.NewInt(1619), big.NewInt(4858), big.NewInt(2429),
+		big.NewInt(7288), big.NewInt(3644), big.NewInt(1822), big.NewInt(911), big.NewInt(2734), big.NewInt(1367),
+		big.NewInt(4102), big.NewInt(2051), big.NewInt(6154), big.NewInt(3077), big.NewInt(9232), big.NewInt(4616),
+		big.NewInt(2308), big.NewInt(1154), big.NewInt(577), big.NewInt(1732), big.NewInt(866), big.NewInt(433),
+		big.NewInt(1300), big.NewInt(650), big.NewInt(325), big.NewInt(976), big.NewInt(488), big.NewInt(244),
+		big.NewInt(122), big.NewInt(61), big.NewInt(184), big.NewInt(92), big.NewInt(46), big.NewInt(23),
+		big.NewInt(70), big.NewInt(35), big.NewInt(106), big.NewInt(53), big.NewInt(160), big.NewInt(80),
+		big.NewInt(40), big.NewInt(20), big.NewInt(10), big.NewInt(5), big.NewInt(16), big.NewInt(8),
+		big.NewInt(4), big.NewInt(2), big.NewInt(1),
 	}, 111}
 )
 
@@ -36,16 +55,21 @@ func TestCollatzCalculateErrorHandling(t *testing.T) {
 	actual := collatz.New(testVal0.number)
 
 	assert.Error(t, actual.Calculate())
-	assert.Equal(t, 0, len(actual.Steps()))
+	assert.Equal(t, testVal0.totalStepCount, len(actual.Steps()))
 }
 
 func TestCollatzCalculate(t *testing.T) {
 	t.Parallel()
 
-	tests := []testValues{testVal1, testVal2, testVal7, testVal27}
+	tests := map[string]testValues{
+		"test value 1":  {testVal1.number, testVal1.steps, testVal1.totalStepCount},
+		"test value 2":  {testVal2.number, testVal2.steps, testVal2.totalStepCount},
+		"test value 7":  {testVal7.number, testVal7.steps, testVal7.totalStepCount},
+		"test value 27": {testVal27.number, testVal27.steps, testVal27.totalStepCount},
+	}
 
-	for _, test := range tests {
-		t.Run(fmt.Sprintf("test input number %d", test.number), func(t *testing.T) {
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			actual := collatz.New(test.number)
@@ -59,24 +83,19 @@ func TestCollatzCalculate(t *testing.T) {
 	}
 }
 
-func TestCollatzHighestIterations(t *testing.T) {
+func TestCollatzLargestStepCount(t *testing.T) {
 	t.Parallel()
 
-	type highestIteration struct {
-		index      uint64
-		iterations int
-	}
+	var largestStepCount *collatz.Collatz
 
-	highest := highestIteration{0, 0}
-
-	for i := uint64(4); i <= 250000; i++ {
+	for i := big.NewInt(4); i.Cmp(big.NewInt(30)) <= 0; i.Add(i, big.NewInt(1)) {
 		c := collatz.New(i)
 		assert.NoError(t, c.Calculate())
-		if len(c.Steps()) > highest.iterations {
-			highest = highestIteration{i, len(c.Steps())}
+		if largestStepCount == nil || len(largestStepCount.Steps()) < len(c.Steps()) {
+			largestStepCount = c
 		}
 	}
 
-	assert.Equal(t, uint64(230631), highest.index)
-	assert.Equal(t, 442, highest.iterations)
+	assert.Equal(t, big.NewInt(27), largestStepCount.Number())
+	assert.Equal(t, 111, len(largestStepCount.Steps()))
 }

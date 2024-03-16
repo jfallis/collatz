@@ -1,18 +1,18 @@
 package main
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"math/big"
 	"os"
 	"runtime"
-	"strconv"
 	"strings"
 
-	"github.com/jfallis/collatz/pkg/calculation"
+	"github.com/jfallis/collatz/pkg/math"
+
 	"github.com/jfallis/collatz/pkg/collatz"
 	"github.com/jfallis/collatz/pkg/collatz/extension"
-	"github.com/jfallis/collatz/pkg/domain"
 
 	"github.com/pterm/pterm"
 	"github.com/pterm/pterm/putils"
@@ -35,34 +35,44 @@ func main() {
 	pterm.DefaultHeader.Println("The Collatz Conjecture is the simplest math problem no one can solve \n",
 		"- it is easy enough for almost anyone to understand but notoriously difficult to solve.")
 
-	if len(os.Args) != 3 {
-		printErrMsg("invalid command; example: ./collatz seed 9663 or ./collatz bruteforce 100000")
+	if len(os.Args) < 3 {
+		printErrMsg("invalid command; example: ./collatz seed 9663 or ./collatz bruteforce 0 100000")
 		return
 	}
 
-	s, argErr := strconv.ParseUint(os.Args[2], calculation.Base, calculation.Bit)
-	if argErr != nil {
-		printErrMsg(argErr.Error())
+	sArg2 := new(big.Int)
+	if _, ok := sArg2.SetString(os.Args[2], math.Base); !ok {
+		printErrMsg("Error: Failed to convert string to big.Int")
 		return
 	}
 
 	switch os.Args[1] {
 	case "bruteforce":
 		runtime.GOMAXPROCS(runtime.NumCPU() * cpuMultiplier)
-		if bErr := extension.Bruteforce(s, extension.DefaultBruteforceRoutineBatchLimit, true); bErr != nil {
-			printErrMsg(bErr.Error())
+
+		sArg3 := new(big.Int)
+		if _, ok := sArg3.SetString(os.Args[3], math.Base); !ok {
+			printErrMsg("Error: Failed to convert string to big.Int")
 			return
 		}
 
-		pterm.DefaultBasicText.Println("The" + pterm.LightMagenta(" cake ") + "is a lie.")
+		if _, err := extension.Bruteforce(sArg2, sArg3, extension.DefaultBruteforceRoutineBatchLimit, true); err != nil {
+			var success collatz.SuccessError
+			if errors.As(err, &success) {
+				pterm.DefaultBasicText.Printf("The %s is a lie.\n", pterm.LightMagenta("cake"))
+			}
+
+			printErrMsg(err.Error())
+			return
+		}
 
 		return
 	case "seed":
-		collatzConjecture(s)
+		collatzConjecture(sArg2)
 	}
 }
 
-func collatzConjecture(n uint64) {
+func collatzConjecture(n *big.Int) {
 	c := collatz.New(n)
 	if err := c.Calculate(); err != nil {
 		printErrMsg(err.Error())
@@ -72,52 +82,20 @@ func collatzConjecture(n uint64) {
 	}
 
 	bulletListItems := []pterm.BulletListItem{
-		{Level: 0, Text: pterm.LightMagenta("Total steps:") + fmt.Sprintf(" %d", len(c.Steps()))},
-		{Level: 0, Text: pterm.LightMagenta("Collatz sequence:") + fmt.Sprintf(" %s", func(steps []uint64) string {
+		{Level: 0, Text: fmt.Sprintf("%s %d", pterm.LightMagenta("Total steps:"), len(c.Steps()))},
+		{Level: 0, Text: fmt.Sprintf("%s %s", pterm.LightMagenta("Collatz sequence:"), func(steps []*big.Int) string {
 			s := make([]string, len(steps))
 			for x, step := range steps {
-				s[x] = strconv.FormatUint(step, 10)
+				s[x] = step.String()
 			}
 
 			return strings.Join(s, ", ")
 		}(c.Steps()))},
-		{Level: 0, Text: pterm.LightMagenta("Success:") + fmt.Sprintf(" %t", c.Success())},
+		{Level: 0, Text: fmt.Sprintf("%s %t", pterm.LightMagenta("Success:"), c.Success())},
 	}
 
 	_ = pterm.DefaultBulletList.WithItems(bulletListItems).Render()
 	pterm.Println()
-
-	resp := domain.Response{
-		HailStones: c.Steps(),
-	}
-
-	pterm.DefaultSection.Println("Graphs")
-
-	pterm.DefaultSection.WithLevel(2).Println("Hail stones")
-	pterm.DefaultBasicText.Println(buildCharts[uint64](resp.HailStones))
-
-	jsonDump, err := json.Marshal(&resp)
-	if err != nil {
-		printErrMsg(err.Error())
-		return
-	}
-
-	pterm.Println()
-	pterm.Printf("JSON data blob: %s\n", jsonDump)
-}
-
-func buildCharts[V uint64 | float64](data []V) string {
-	bars := make([]pterm.Bar, len(data))
-	for i, p := range data {
-		bars[i] = pterm.Bar{
-			Label: fmt.Sprintf("%d: %v", i+1, p),
-			Value: int(p),
-		}
-	}
-
-	barChart, _ := pterm.DefaultBarChart.WithHorizontal().WithBars(bars).Srender()
-
-	return barChart
 }
 
 func printErrMsg(str string) {

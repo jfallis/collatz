@@ -7,15 +7,20 @@ package collatz
 
 import (
 	"fmt"
+	"math/big"
 	"sync"
 )
 
 const (
-	divide         = 2
-	multiplication = 3
-	increment      = 1
-	minimum        = 1
-	SuccessMsg     = "You found an infinite loop 🎉"
+	SuccessMsg = "You found an infinite loop 🎉"
+	StepsLimit = 1_000_000
+)
+
+var (
+	divide         = big.NewInt(2)
+	multiplication = big.NewInt(3)
+	increment      = big.NewInt(1)
+	minimum        = big.NewInt(1)
 )
 
 // ErrInvalidNumber is an error that is returned when the input number is less than the minimum value.
@@ -23,8 +28,8 @@ var ErrInvalidNumber = fmt.Errorf("number must be greater than or equal to %d", 
 
 // SuccessError is a custom error type that is returned when the Collatz Conjecture problem is successfully solved.
 type SuccessError struct {
-	Number uint64
-	Steps  []uint64
+	Number *big.Int
+	Steps  []*big.Int
 }
 
 // Error method for the SuccessError type.
@@ -33,31 +38,31 @@ func (e SuccessError) Error() string {
 }
 
 type Collatz struct {
-	number uint64
-	steps  []uint64
-	cache  map[uint64][]uint64
+	number *big.Int
+	steps  []*big.Int
+	cache  map[string][]*big.Int
 	mu     sync.RWMutex
 }
 
-func New(num uint64) *Collatz {
+func New(num *big.Int) *Collatz {
 	return &Collatz{
-		number: num,
-		steps:  make([]uint64, 0),
-		cache:  make(map[uint64][]uint64),
+		number: new(big.Int).Set(num),
+		steps:  make([]*big.Int, 0),
+		cache:  make(map[string][]*big.Int),
 	}
 }
 
 func (c *Collatz) Calculate() error {
-	if c.number < minimum {
+	if c.number.Cmp(minimum) < 0 {
 		return ErrInvalidNumber
 	}
 
 	counter := 0
-	num := c.number
+	num := new(big.Int).Set(c.number)
 
-	for num != minimum || counter == 0 {
+	for num.Cmp(minimum) != 0 || (counter == 0 && counter <= StepsLimit) {
 		c.mu.RLock()
-		cachedSteps, ok := c.cache[num]
+		cachedSteps, ok := c.cache[num.String()]
 		c.mu.RUnlock()
 
 		if ok {
@@ -65,36 +70,38 @@ func (c *Collatz) Calculate() error {
 			break
 		}
 
-		num = c.Sequence(num)
-		c.steps = append(c.steps, num)
+		c.Sequence(num)
+		c.steps = append(c.steps, new(big.Int).Set(num))
 		counter++
 	}
 
 	c.mu.Lock()
-	c.cache[c.number] = c.steps
+	c.cache[c.number.String()] = c.steps
 	c.mu.Unlock()
 
 	return nil
 }
 
-func (c *Collatz) Sequence(val uint64) uint64 {
-	if val%divide == 0 {
-		return val / divide
+func (c *Collatz) Sequence(val *big.Int) {
+	if new(big.Int).Mod(val, divide).Cmp(big.NewInt(0)) == 0 {
+		val.Quo(val, divide)
+		return
 	}
 
-	return val*multiplication + increment
+	val.Mul(val, multiplication)
+	val.Add(val, increment)
 }
 
-func (c *Collatz) Number() uint64 {
+func (c *Collatz) Number() *big.Int {
 	return c.number
 }
 
-func (c *Collatz) Steps() []uint64 {
+func (c *Collatz) Steps() []*big.Int {
 	return c.steps
 }
 
 func (c *Collatz) Success() bool {
 	length := len(c.Steps())
 
-	return length != 0 && c.Steps()[length-1] != 1
+	return length != 0 && c.Steps()[length-1].Cmp(big.NewInt(1)) != 0
 }
