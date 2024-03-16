@@ -2,8 +2,9 @@ package collatz_test
 
 import (
 	"fmt"
-	"github.com/jfallis/collatz/pkg/collatz"
 	"testing"
+
+	"github.com/jfallis/collatz/pkg/collatz"
 
 	"github.com/stretchr/testify/assert"
 )

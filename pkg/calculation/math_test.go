@@ -1,8 +1,9 @@
 package calculation_test
 
 import (
-	"github.com/jfallis/collatz/pkg/calculation"
 	"testing"
+
+	"github.com/jfallis/collatz/pkg/calculation"
 
 	"github.com/stretchr/testify/assert"
 )

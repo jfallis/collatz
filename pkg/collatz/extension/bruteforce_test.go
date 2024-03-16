@@ -3,10 +3,11 @@ package extension_test
 import (
 	"bytes"
 	"fmt"
-	"github.com/jfallis/collatz/pkg/collatz/extension"
-	"github.com/stretchr/testify/assert"
 	"log/slog"
 	"testing"
+
+	"github.com/jfallis/collatz/pkg/collatz/extension"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBruteforce(t *testing.T) {
@@ -25,7 +26,6 @@ func TestBruteforce(t *testing.T) {
 	for _, test := range tests {
 		name := fmt.Sprintf("test input number %d, maxBatchCount %d", test.number, test.maxBatchCount)
 		t.Run(name, func(t *testing.T) {
-
 			var buf bytes.Buffer
 			logger := slog.New(slog.NewJSONHandler(&buf, nil))
 			slog.SetDefault(logger)
@@ -40,7 +40,6 @@ func TestBruteforce(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func BenchmarkBruteforce(b *testing.B) {

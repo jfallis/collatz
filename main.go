@@ -3,25 +3,22 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jfallis/collatz/pkg/calculation"
-	"github.com/jfallis/collatz/pkg/collatz"
-	"github.com/jfallis/collatz/pkg/collatz/extension"
-	"github.com/jfallis/collatz/pkg/domain"
 	"log/slog"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/jfallis/collatz/pkg/calculation"
+	"github.com/jfallis/collatz/pkg/collatz"
+	"github.com/jfallis/collatz/pkg/collatz/extension"
+	"github.com/jfallis/collatz/pkg/domain"
 
 	"github.com/pterm/pterm"
 	"github.com/pterm/pterm/putils"
 )
 
 const (
-	headerBoxWidth   = 50
-	headerLineHeight = 4
-	headerPosition   = 5
-	chartWidth       = 100
-	chartHeight      = 20
+	errMargin = 15
 )
 
 func main() {
@@ -84,7 +81,7 @@ func collat(n uint64) {
 		{Level: 0, Text: pterm.LightMagenta("Success:") + fmt.Sprintf(" %t", c.Success())},
 	}
 
-	pterm.DefaultBulletList.WithItems(bulletListItems).Render()
+	_ = pterm.DefaultBulletList.WithItems(bulletListItems).Render()
 	pterm.Println()
 
 	resp := domain.Response{
@@ -107,8 +104,6 @@ func collat(n uint64) {
 
 func buildCharts[V uint64 | float64](data []V) string {
 	bars := make([]pterm.Bar, len(data))
-	_, isFloat64 := any(data).([]float64)
-	_ = fmt.Sprintf("%s", strconv.FormatBool(isFloat64))
 	for i, p := range data {
 		bars[i] = pterm.Bar{
 			Label: fmt.Sprintf("%d: %v", i+1, p),
@@ -122,10 +117,8 @@ func buildCharts[V uint64 | float64](data []V) string {
 }
 
 func printErrMsg(str string) {
-	pterm.DefaultHeader.WithMargin(15).
+	pterm.DefaultHeader.WithMargin(errMargin).
 		WithBackgroundStyle(pterm.NewStyle(pterm.BgRed)).
 		WithTextStyle(pterm.NewStyle(pterm.FgLightWhite)).
 		Println(str)
-
-	return
 }
