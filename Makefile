@@ -1,5 +1,3 @@
-
-
 GOCMD=go
 GOTEST=$(GOCMD) test
 GOVET=$(GOCMD) vet
@@ -28,7 +26,7 @@ build: vendor ## Build the project and put the output binary in out/bin/
 	GOOS=darwin GOARCH=amd64 go build -o $(BINARY_DIR)/$(BINARY_NAME)-amd64-macos
 	GOOS=darwin GOARCH=arm64 go build -o $(BINARY_DIR)/$(BINARY_NAME)-arm64-macos
 	GOOS=linux GOARCH=amd64 go build -o $(BINARY_DIR)/$(BINARY_NAME)-linux
-	zip -r collatz.zip $(BINARY_DIR)
+	zip -r $(BINARY_NAME).zip $(BINARY_DIR)
 
 	$(GOCMD) build -mod vendor -o $(BINARY_DIR)/$(BINARY_NAME) .
 
