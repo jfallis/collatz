@@ -2,16 +2,18 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"math"
+	"github.com/jfallis/collatz/pkg/calculation"
+	"github.com/jfallis/collatz/pkg/collatz"
+	"github.com/jfallis/collatz/pkg/collatz/extension"
+	"github.com/jfallis/collatz/pkg/domain"
+	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 
-	"github.com/buger/goterm"
-	"github.com/jfallis/collatz/calculation"
-	"github.com/jfallis/collatz/domain"
-	"github.com/jfallis/collatz/metrics"
+	"github.com/pterm/pterm"
+	"github.com/pterm/pterm/putils"
 )
 
 const (
@@ -23,94 +25,107 @@ const (
 )
 
 func main() {
-	goterm.Clear()
-	introBox := goterm.NewBox(headerBoxWidth|goterm.PCT, headerLineHeight, 0)
-	fmt.Fprintln(introBox,
-		fmt.Sprint("The Collatz Conjecture is the simplest math problem no one can solve \n",
-			"- it is easy enough for almost anyone to understand but notoriously difficult to solve."),
-	)
-	goterm.Println(goterm.MoveTo(introBox.String(), headerPosition|goterm.PCT, headerPosition|goterm.PCT))
-	goterm.Flush()
+	handler := pterm.NewSlogHandler(&pterm.DefaultLogger)
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
+
+	_ = pterm.DefaultBigText.WithLetters(
+		putils.LettersFromStringWithStyle("Collatz", pterm.FgGreen.ToStyle()),
+	).Render()
+
+	pterm.DefaultHeader.Println("The Collatz Conjecture is the simplest math problem no one can solve \n",
+		"- it is easy enough for almost anyone to understand but notoriously difficult to solve.")
 
 	if len(os.Args) != 3 {
-		panic(errors.New("invalid command; example: ./collatz seed 9663 or ./collatz bruteforce 100000"))
+		printErrMsg("invalid command; example: ./collatz seed 9663 or ./collatz bruteforce 100000")
+		return
 	}
 
-	s, err := strconv.ParseUint(os.Args[2], calculation.Base, calculation.Bit)
-	if err != nil {
-		panic(err)
+	s, argErr := strconv.ParseUint(os.Args[2], calculation.Base, calculation.Bit)
+	if argErr != nil {
+		printErrMsg(argErr.Error())
+		return
 	}
 
 	switch os.Args[1] {
 	case "bruteforce":
-		if num, err := calculation.Bruteforce(s); err != nil {
-			goterm.Println(num)
-			panic(err)
+		if bErr := extension.Bruteforce(s, extension.DefaultBruteforceRoutineBatchLimit, true); bErr != nil {
+			printErrMsg(bErr.Error())
+			return
 		}
 
-		goterm.Println("The cake is a lie.")
-		goterm.Flush()
+		pterm.DefaultBasicText.Println("The" + pterm.LightMagenta(" cake ") + "is a lie.")
 
 		return
 	case "seed":
-		collatz(s)
+		collat(s)
 	}
 }
 
-func collatz(n uint64) {
-	c := calculation.Create(n)
-	goterm.Printf("\nNumber value: %d, Number of steps: %d, Success: %t\n\n", n, c.Len(), calculation.Success(c.Results()))
-	goterm.Flush()
+func collat(n uint64) {
+	c := collatz.New(n)
+	if err := c.Calculate(); err != nil {
+		printErrMsg(err.Error())
+		pterm.Println()
 
-	resp := domain.Response{
-		HailStones: c.Results(),
-		Charts: domain.Charts{
-			Logarithm: metrics.BuildMetrics(func(x calculation.Statement) []float64 {
-				y := make([]float64, x.Len())
-				for i, z := range x.Results() {
-					y[i] = math.Log(z)
-				}
-
-				return y
-			}(c)),
-			HailStones: metrics.BuildMetrics(c.Results()),
-			Histogram: metrics.BuildMetrics(
-				calculation.ConvertIntToFloat(calculation.CreateHistogram(
-					calculation.ConvertFloatToInt(c.Results()), calculation.LeadingDigit),
-				),
-			),
-		},
+		return
 	}
 
-	// Log
-	createChart(resp.Charts.Logarithm, "Logarithm")
+	bulletListItems := []pterm.BulletListItem{
+		{Level: 0, Text: pterm.LightMagenta("Total steps:") + fmt.Sprintf(" %d", len(c.Steps()))},
+		{Level: 0, Text: pterm.LightMagenta("Collatz sequence:") + fmt.Sprintf(" %s", func(steps []uint64) string {
+			s := make([]string, len(steps))
+			for x, step := range steps {
+				s[x] = strconv.FormatUint(step, 10)
+			}
 
-	// HailStones
-	createChart(resp.Charts.HailStones, "Hail stones")
+			return strings.Join(s, ", ")
+		}(c.Steps()))},
+		{Level: 0, Text: pterm.LightMagenta("Success:") + fmt.Sprintf(" %t", c.Success())},
+	}
 
-	// Histogram
-	createChart(resp.Charts.Histogram, "Histogram")
+	pterm.DefaultBulletList.WithItems(bulletListItems).Render()
+	pterm.Println()
 
-	// json blob
+	resp := domain.Response{
+		HailStones: c.Steps(),
+	}
+
+	pterm.DefaultSection.Println("Graphs")
+
+	pterm.DefaultSection.WithLevel(2).Println("Hail stones")
+	pterm.DefaultBasicText.Println(buildCharts[uint64](resp.HailStones))
+
 	jsonDump, err := json.Marshal(&resp)
 	if err != nil {
 		panic(err)
 	}
 
-	goterm.Printf("JSON data blob: %s\n", jsonDump)
-	goterm.Flush()
+	pterm.Println()
+	pterm.Printf("JSON data blob: %s\n", jsonDump)
 }
 
-func createChart(values [][]float64, colName string) {
-	chart := goterm.NewLineChart(chartWidth, chartHeight)
-	data := new(goterm.DataTable)
-	data.AddColumn("Iterations")
-	data.AddColumn(colName)
-
-	for _, num := range values {
-		data.AddRow(num[0], num[1])
+func buildCharts[V uint64 | float64](data []V) string {
+	bars := make([]pterm.Bar, len(data))
+	_, isFloat64 := any(data).([]float64)
+	_ = fmt.Sprintf("%s", strconv.FormatBool(isFloat64))
+	for i, p := range data {
+		bars[i] = pterm.Bar{
+			Label: fmt.Sprintf("%d: %v", i+1, p),
+			Value: int(p),
+		}
 	}
 
-	goterm.Println(chart.Draw(data))
-	goterm.Flush()
+	barChart, _ := pterm.DefaultBarChart.WithHorizontal().WithBars(bars).Srender()
+
+	return barChart
+}
+
+func printErrMsg(str string) {
+	pterm.DefaultHeader.WithMargin(15).
+		WithBackgroundStyle(pterm.NewStyle(pterm.BgRed)).
+		WithTextStyle(pterm.NewStyle(pterm.FgLightWhite)).
+		Println(str)
+
+	return
 }

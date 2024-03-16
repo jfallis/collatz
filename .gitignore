@@ -1,3 +1,4 @@
 *.cov
+/.idea
 /out
 /vendor

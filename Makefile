@@ -22,7 +22,7 @@ all: help
 ## Build:
 build: ## Build the project and put the output binary in out/bin/
 	mkdir -p out/bin
-	GO111MODULE=on $(GOCMD) build -mod vendor -o out/bin/$(BINARY_NAME) .
+	$(GOCMD) build -mod vendor -o out/bin/$(BINARY_NAME) .
 
 clean: ## Remove build related files
 	rm -fr ./bin
@@ -32,7 +32,7 @@ clean: ## Remove build related files
 ## Test:
 test: ## Run the tests
 ifeq ($(EXPORT_RESULT), true)
-	GO111MODULE=off go get -u github.com/jstemmer/go-junit-report
+	go get -u github.com/jstemmer/go-junit-report
 	$(eval OUTPUT_OPTIONS = | tee /dev/tty | go-junit-report -set-exit-code > junit-report.xml)
 endif
 	$(GOTEST) -v -race ./... $(OUTPUT_OPTIONS)
