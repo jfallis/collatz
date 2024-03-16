@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -18,7 +19,8 @@ import (
 )
 
 const (
-	errMargin = 15
+	errMargin     = 15
+	cpuMultiplier = 100
 )
 
 func main() {
@@ -46,6 +48,7 @@ func main() {
 
 	switch os.Args[1] {
 	case "bruteforce":
+		runtime.GOMAXPROCS(runtime.NumCPU() * cpuMultiplier)
 		if bErr := extension.Bruteforce(s, extension.DefaultBruteforceRoutineBatchLimit, true); bErr != nil {
 			printErrMsg(bErr.Error())
 			return
@@ -55,11 +58,11 @@ func main() {
 
 		return
 	case "seed":
-		collat(s)
+		collatzConjecture(s)
 	}
 }
 
-func collat(n uint64) {
+func collatzConjecture(n uint64) {
 	c := collatz.New(n)
 	if err := c.Calculate(); err != nil {
 		printErrMsg(err.Error())
@@ -95,7 +98,8 @@ func collat(n uint64) {
 
 	jsonDump, err := json.Marshal(&resp)
 	if err != nil {
-		panic(err)
+		printErrMsg(err.Error())
+		return
 	}
 
 	pterm.Println()
