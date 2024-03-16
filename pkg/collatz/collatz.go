@@ -17,7 +17,6 @@ const (
 )
 
 var (
-	divide         = big.NewInt(2)
 	multiplication = big.NewInt(3)
 	increment      = big.NewInt(1)
 	minimum        = big.NewInt(1)
@@ -83,8 +82,8 @@ func (c *Collatz) Calculate() error {
 }
 
 func (c *Collatz) Sequence(val *big.Int) {
-	if new(big.Int).Mod(val, divide).Cmp(big.NewInt(0)) == 0 {
-		val.Quo(val, divide)
+	if new(big.Int).Set(val).Bit(0) == 0 {
+		val.Rsh(val, 1)
 		return
 	}
 

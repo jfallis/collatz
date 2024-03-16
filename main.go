@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"math/big"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/jfallis/collatz/pkg/math"
@@ -19,8 +18,7 @@ import (
 )
 
 const (
-	errMargin     = 15
-	cpuMultiplier = 100
+	errMargin = 15
 )
 
 func main() {
@@ -48,8 +46,6 @@ func main() {
 
 	switch os.Args[1] {
 	case "bruteforce":
-		runtime.GOMAXPROCS(runtime.NumCPU() * cpuMultiplier)
-
 		sArg3 := new(big.Int)
 		if _, ok := sArg3.SetString(os.Args[3], math.Base); !ok {
 			printErrMsg("Error: Failed to convert string to big.Int")
