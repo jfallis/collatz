@@ -35,7 +35,6 @@ type Collatz struct {
 	Number     uint64
 	Steps      int
 	HailStones []float64
-	Broken     bool
 }
 
 func Create(num uint64) Statement {
@@ -60,7 +59,6 @@ func (c *Collatz) Execute() {
 	}
 
 	c.Steps = 0
-	c.Broken = false
 	c.HailStones = make([]float64, maxIterations)
 	c.HailStones[0] = float64(c.Number)
 
