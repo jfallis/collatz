@@ -6,17 +6,8 @@ import (
 
 const (
 	Base                = 10
-	Bit                 = 64
 	leadingDigitMinimum = 10
 )
-
-type Statement interface {
-	Number() uint64
-	Sequence(val uint64) uint64
-	Calculate() error
-	Steps() []uint64
-	Success() bool
-}
 
 func LeadingDigitEstimate(value uint64) uint64 {
 	if value < leadingDigitMinimum {
@@ -34,5 +25,3 @@ func LeadingDigitEstimate(value uint64) uint64 {
 
 	return value
 }
-
-type IntCallback func(uint64) uint64

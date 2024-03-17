@@ -2,13 +2,53 @@ package extension_test
 
 import (
 	"bytes"
+	"errors"
 	"log/slog"
 	"math/big"
 	"testing"
 
+	"github.com/jfallis/collatz/pkg/collatz"
+
 	"github.com/jfallis/collatz/pkg/collatz/extension"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestWaitErrHandling(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		inputErr    error
+		expectedErr string
+	}{
+		"Test with nil error": {
+			inputErr:    nil,
+			expectedErr: "",
+		},
+		"Test with non-success error": {
+			inputErr:    errors.New("some error"),
+			expectedErr: "bruteforce failed: some error",
+		},
+		"Test with success error": {
+			inputErr:    collatz.SuccessError{Number: big.NewInt(5), Steps: []*big.Int{big.NewInt(1), big.NewInt(2)}},
+			expectedErr: "successfully found the number You found an infinite loop 🎉 number: 5, steps: [+1 +2]",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			err := extension.WaitErrHandling(test.inputErr)
+			if test.expectedErr == "" {
+				assert.NoError(t, err)
+				return
+			}
+
+			assert.Error(t, err)
+			assert.Equal(t, test.expectedErr, err.Error())
+		})
+	}
+}
 
 func TestBruteforce(t *testing.T) {
 	tests := map[string]struct {

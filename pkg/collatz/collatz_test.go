@@ -49,6 +49,33 @@ var (
 	}, 111}
 )
 
+func TestSuccessError(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		input    collatz.SuccessError
+		expected string
+	}{
+		"Test with number 5 and steps [1, 2]": {
+			input:    collatz.SuccessError{Number: big.NewInt(5), Steps: []*big.Int{big.NewInt(1), big.NewInt(2)}},
+			expected: "You found an infinite loop 🎉 number: 5, steps: [+1 +2]",
+		},
+		"Test with number 10 and steps [1, 2, 3]": {
+			input:    collatz.SuccessError{Number: big.NewInt(10), Steps: []*big.Int{big.NewInt(1), big.NewInt(2), big.NewInt(3)}},
+			expected: "You found an infinite loop 🎉 number: 10, steps: [+1 +2 +3]",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			actual := test.input.Error()
+			assert.Equal(t, test.expected, actual)
+		})
+	}
+}
+
 func TestCollatzCalculateErrorHandling(t *testing.T) {
 	t.Parallel()
 

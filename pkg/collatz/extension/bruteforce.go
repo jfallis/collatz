@@ -65,10 +65,10 @@ func Bruteforce(start, end, maxBatchCount *big.Int, logging bool) (*big.Int, err
 		lastIndex.Set(index)
 	}
 
-	return lastIndex.Add(lastIndex, big.NewInt(1)), waitErrHandling(errorGroup.Wait())
+	return lastIndex.Add(lastIndex, big.NewInt(1)), WaitErrHandling(errorGroup.Wait())
 }
 
-func waitErrHandling(err error) error {
+func WaitErrHandling(err error) error {
 	if err == nil {
 		return nil
 	}
