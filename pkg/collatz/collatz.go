@@ -8,7 +8,6 @@ package collatz
 import (
 	"fmt"
 	"math/big"
-	"sync"
 )
 
 const (
@@ -40,7 +39,6 @@ type Collatz struct {
 	number *big.Int
 	steps  []*big.Int
 	cache  map[string][]*big.Int
-	mu     sync.RWMutex
 }
 
 func New(num *big.Int) *Collatz {
@@ -60,23 +58,10 @@ func (c *Collatz) Calculate() error {
 	num := new(big.Int).Set(c.number)
 
 	for num.Cmp(minimum) != 0 || (counter == 0 && counter <= StepsLimit) {
-		c.mu.RLock()
-		cachedSteps, ok := c.cache[num.String()]
-		c.mu.RUnlock()
-
-		if ok {
-			c.steps = append(c.steps, cachedSteps...)
-			break
-		}
-
 		c.Sequence(num)
 		c.steps = append(c.steps, new(big.Int).Set(num))
 		counter++
 	}
-
-	c.mu.Lock()
-	c.cache[c.number.String()] = c.steps
-	c.mu.Unlock()
 
 	return nil
 }
@@ -102,5 +87,5 @@ func (c *Collatz) Steps() []*big.Int {
 func (c *Collatz) Success() bool {
 	length := len(c.Steps())
 
-	return length != 0 && c.Steps()[length-1].Cmp(big.NewInt(1)) != 0
+	return length != 0 && c.Steps()[length-1].Cmp(minimum) != 0
 }
