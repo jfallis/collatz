@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"sync"
 
 	"github.com/jfallis/collatz/pkg/collatz"
 	"golang.org/x/sync/errgroup"
@@ -16,11 +17,16 @@ const (
 )
 
 var (
-	DefaultBruteforceRoutineBatchLimit = big.NewInt(DefaultBatchLimit)
-
-	zero = big.NewInt(0)
-	one  = big.NewInt(1)
+	defaultBruteforceRoutineBatchLimit     *big.Int
+	defaultBruteforceRoutineBatchLimitOnce sync.Once
 )
+
+func DefaultBruteforceRoutineBatchLimit() *big.Int {
+	defaultBruteforceRoutineBatchLimitOnce.Do(func() {
+		defaultBruteforceRoutineBatchLimit = big.NewInt(DefaultBatchLimit)
+	})
+	return defaultBruteforceRoutineBatchLimit
+}
 
 func Bruteforce(start, end, maxBatchCount *big.Int, logging bool) (*big.Int, error) {
 	if end.Cmp(maxBatchCount) < 0 {
@@ -30,6 +36,8 @@ func Bruteforce(start, end, maxBatchCount *big.Int, logging bool) (*big.Int, err
 	errorGroup, ctx := errgroup.WithContext(context.Background())
 	sem := make(chan struct{}, maxBatchCount.Int64())
 
+	zero := big.NewInt(0)
+	one := big.NewInt(1)
 	iStart := new(big.Int).Set(start)
 	lastIndex := new(big.Int)
 	for index := iStart; index.Cmp(end) < 0; index.Add(index, one) {

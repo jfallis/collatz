@@ -35,13 +35,11 @@ func main() {
 
 	if len(os.Args) < 3 {
 		printErrMsg("invalid command; example: ./collatz seed 9663 or ./collatz bruteforce 0 100000")
-		return
 	}
 
 	sArg2 := new(big.Int)
 	if _, ok := sArg2.SetString(os.Args[2], math.Base); !ok {
 		printErrMsg("Error: Failed to convert string to big.Int")
-		return
 	}
 
 	switch os.Args[1] {
@@ -49,17 +47,15 @@ func main() {
 		sArg3 := new(big.Int)
 		if _, ok := sArg3.SetString(os.Args[3], math.Base); !ok {
 			printErrMsg("Error: Failed to convert string to big.Int")
-			return
 		}
 
-		if _, err := extension.Bruteforce(sArg2, sArg3, extension.DefaultBruteforceRoutineBatchLimit, true); err != nil {
+		if _, err := extension.Bruteforce(sArg2, sArg3, extension.DefaultBruteforceRoutineBatchLimit(), true); err != nil {
 			var success collatz.SuccessError
 			if errors.As(err, &success) {
 				pterm.DefaultBasicText.Printf("The %s is a lie.\n", pterm.LightMagenta("cake"))
 			}
 
 			printErrMsg(err.Error())
-			return
 		}
 
 		return
@@ -71,21 +67,13 @@ func main() {
 func collatzConjecture(n *big.Int) {
 	c := collatz.New(n)
 	if err := c.Calculate(); err != nil {
-		printErrMsg(err.Error())
-		pterm.Println()
-
-		return
+		printErrMsg(err.Error(), 1)
 	}
 
 	bulletListItems := []pterm.BulletListItem{
 		{Level: 0, Text: fmt.Sprintf("%s %d", pterm.LightMagenta("Total steps:"), len(c.Steps()))},
-		{Level: 0, Text: fmt.Sprintf("%s %s", pterm.LightMagenta("Collatz sequence:"), func(steps []*big.Int) string {
-			s := make([]string, len(steps))
-			for x, step := range steps {
-				s[x] = step.String()
-			}
-
-			return strings.Join(s, ", ")
+		{Level: 0, Text: fmt.Sprintf("%s %s", pterm.LightMagenta("Collatz sequence:"), func(steps []string) string {
+			return strings.Join(steps, ", ")
 		}(c.Steps()))},
 		{Level: 0, Text: fmt.Sprintf("%s %t", pterm.LightMagenta("Success:"), c.Success())},
 	}
@@ -94,9 +82,15 @@ func collatzConjecture(n *big.Int) {
 	pterm.Println()
 }
 
-func printErrMsg(str string) {
+func printErrMsg(str string, newline ...int) {
 	pterm.DefaultHeader.WithMargin(errMargin).
 		WithBackgroundStyle(pterm.NewStyle(pterm.BgRed)).
 		WithTextStyle(pterm.NewStyle(pterm.FgLightWhite)).
 		Println(str)
+
+	for i := 0; i < len(newline); i++ {
+		pterm.Println()
+	}
+
+	os.Exit(1)
 }

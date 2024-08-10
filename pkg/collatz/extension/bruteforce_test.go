@@ -29,8 +29,8 @@ func TestWaitErrHandling(t *testing.T) {
 			expectedErr: "bruteforce failed: some error",
 		},
 		"Test with success error": {
-			inputErr:    collatz.SuccessError{Number: big.NewInt(5), Steps: []*big.Int{big.NewInt(1), big.NewInt(2)}},
-			expectedErr: "successfully found the number You found an infinite loop 🎉 number: 5, steps: [+1 +2]",
+			inputErr:    collatz.SuccessError{Number: big.NewInt(5), Steps: []string{"1", "2"}},
+			expectedErr: "successfully found the number You found an infinite loop 🎉 number: 5, steps: [1 2]",
 		},
 	}
 

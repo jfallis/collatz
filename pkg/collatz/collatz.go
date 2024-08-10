@@ -8,26 +8,41 @@ package collatz
 import (
 	"fmt"
 	"math/big"
+	"sync"
 )
 
 const (
 	SuccessMsg = "You found an infinite loop 🎉"
 	StepsLimit = 1_000_000
+	SeqOne     = "4"
+	SeqTwo     = "2"
+	SeqThree   = "1"
 )
 
 var (
-	multiplication = big.NewInt(3)
-	increment      = big.NewInt(1)
-	minimum        = big.NewInt(1)
+	multiplication  = big.NewInt(3)
+	increment       = big.NewInt(1)
+	minimum         = big.NewInt(1)
+	defaultResponse = []string{SeqOne, SeqTwo, SeqThree}
+)
+
+var (
+	errInvalidNumber     error
+	errInvalidNumberOnce sync.Once
 )
 
 // ErrInvalidNumber is an error that is returned when the input number is less than the minimum value.
-var ErrInvalidNumber = fmt.Errorf("number must be greater than or equal to %d", minimum)
+func ErrInvalidNumber() error {
+	errInvalidNumberOnce.Do(func() {
+		errInvalidNumber = fmt.Errorf("number must be greater than or equal to %d", minimum)
+	})
+	return errInvalidNumber
+}
 
 // SuccessError is a custom error type that is returned when the Collatz Conjecture problem is successfully solved.
 type SuccessError struct {
 	Number *big.Int
-	Steps  []*big.Int
+	Steps  []string
 }
 
 // Error method for the SuccessError type.
@@ -37,29 +52,33 @@ func (e SuccessError) Error() string {
 
 type Collatz struct {
 	number *big.Int
-	steps  []*big.Int
-	cache  map[string][]*big.Int
+	steps  []string
 }
 
 func New(num *big.Int) *Collatz {
 	return &Collatz{
 		number: new(big.Int).Set(num),
-		steps:  make([]*big.Int, 0),
-		cache:  make(map[string][]*big.Int),
+		steps:  make([]string, 0),
 	}
 }
 
 func (c *Collatz) Calculate() error {
-	if c.number.Cmp(minimum) < 0 {
-		return ErrInvalidNumber
+	numberComparison := c.number.Cmp(minimum)
+	if numberComparison < 0 {
+		return ErrInvalidNumber()
+	}
+
+	if numberComparison == 0 {
+		c.steps = defaultResponse
+		return nil
 	}
 
 	counter := 0
 	num := new(big.Int).Set(c.number)
 
-	for num.Cmp(minimum) != 0 || (counter == 0 && counter <= StepsLimit) {
+	for num.Cmp(minimum) != 0 && counter <= StepsLimit {
 		c.Sequence(num)
-		c.steps = append(c.steps, new(big.Int).Set(num))
+		c.steps = append(c.steps, num.String())
 		counter++
 	}
 
@@ -67,7 +86,7 @@ func (c *Collatz) Calculate() error {
 }
 
 func (c *Collatz) Sequence(val *big.Int) {
-	if new(big.Int).Set(val).Bit(0) == 0 {
+	if val.Bit(0) == 0 {
 		val.Rsh(val, 1)
 		return
 	}
@@ -80,12 +99,12 @@ func (c *Collatz) Number() *big.Int {
 	return c.number
 }
 
-func (c *Collatz) Steps() []*big.Int {
+func (c *Collatz) Steps() []string {
 	return c.steps
 }
 
 func (c *Collatz) Success() bool {
 	length := len(c.Steps())
 
-	return length != 0 && c.Steps()[length-1].Cmp(minimum) != 0
+	return length != 0 && c.Steps()[length-1] != minimum.String()
 }
