@@ -8,22 +8,27 @@ package collatz
 import (
 	"fmt"
 	"math/big"
+	"os"
 	"sync"
 )
 
 const (
 	SuccessMsg = "You found an infinite loop 🎉"
-	StepsLimit = 1_000_000
-	SeqOne     = "4"
-	SeqTwo     = "2"
-	SeqThree   = "1"
+	SeqOne     = 4
+	SeqTwo     = 2
+	SeqThree   = 1
+	Base       = 10
 )
 
 var (
 	multiplication  = big.NewInt(3)
 	increment       = big.NewInt(1)
 	minimum         = big.NewInt(1)
-	defaultResponse = []string{SeqOne, SeqTwo, SeqThree}
+	defaultResponse = Steps{
+		big.NewInt(SeqOne),
+		big.NewInt(SeqTwo),
+		big.NewInt(SeqThree),
+	}
 )
 
 var (
@@ -31,39 +36,60 @@ var (
 	errInvalidNumberOnce sync.Once
 )
 
+type KeyValue struct {
+	Key   int
+	Value any
+}
+
+func (kv *KeyValue) String() string {
+	return fmt.Sprintf("key: %d, value: %s", kv.Key, kv.Value)
+}
+
 // ErrInvalidNumber is an error that is returned when the input number is less than the minimum value.
 func ErrInvalidNumber() error {
 	errInvalidNumberOnce.Do(func() {
 		errInvalidNumber = fmt.Errorf("number must be greater than or equal to %d", minimum)
 	})
+
 	return errInvalidNumber
 }
 
 // SuccessError is a custom error type that is returned when the Collatz Conjecture problem is successfully solved.
 type SuccessError struct {
-	Number *big.Int
-	Steps  []string
+	String string
 }
 
 // Error method for the SuccessError type.
 func (e SuccessError) Error() string {
-	return fmt.Sprintf("%s number: %d, steps: %+v", SuccessMsg, e.Number, e.Steps)
+	return fmt.Sprintf("%s - %s", SuccessMsg, e.String)
 }
 
 type Collatz struct {
-	number *big.Int
-	steps  []string
+	number string
+	steps  Steps
 }
 
-func New(num *big.Int) *Collatz {
+func New(num string) *Collatz {
 	return &Collatz{
-		number: new(big.Int).Set(num),
-		steps:  make([]string, 0),
+		number: num,
+		steps:  make(Steps, 0),
 	}
 }
 
-func (c *Collatz) Calculate() error {
-	numberComparison := c.number.Cmp(minimum)
+func (c *Collatz) Calculate(enableSteps bool) error {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("Panic: %s\n", c.String())
+			fmt.Printf("Recover message: %+v\n", r)
+			os.Exit(1)
+		}
+	}()
+
+	num, ok := new(big.Int).SetString(c.number, Base)
+	if !ok {
+		return ErrInvalidNumber()
+	}
+	numberComparison := num.Cmp(minimum)
 	if numberComparison < 0 {
 		return ErrInvalidNumber()
 	}
@@ -73,13 +99,12 @@ func (c *Collatz) Calculate() error {
 		return nil
 	}
 
-	counter := 0
-	num := new(big.Int).Set(c.number)
-
-	for num.Cmp(minimum) != 0 && counter <= StepsLimit {
+	for num.Cmp(minimum) != 0 {
 		c.Sequence(num)
-		c.steps = append(c.steps, num.String())
-		counter++
+
+		if enableSteps {
+			c.steps = append(c.steps, new(big.Int).Set(num))
+		}
 	}
 
 	return nil
@@ -95,16 +120,57 @@ func (c *Collatz) Sequence(val *big.Int) {
 	val.Add(val, increment)
 }
 
-func (c *Collatz) Number() *big.Int {
+func (c *Collatz) Number() string {
 	return c.number
 }
 
-func (c *Collatz) Steps() []string {
+func (c *Collatz) Steps() Steps {
 	return c.steps
+}
+
+type Steps []*big.Int
+
+func (s Steps) String() string {
+	var steps []string
+	for _, step := range s {
+		steps = append(steps, step.String())
+	}
+
+	return fmt.Sprintf("%v", steps)
+}
+
+func (s Steps) MaxStepValue() KeyValue {
+	i, val := Max(s)
+	return KeyValue{
+		Key:   i,
+		Value: val,
+	}
 }
 
 func (c *Collatz) Success() bool {
 	length := len(c.Steps())
+	return length != 0 && c.Steps()[length-1].Cmp(minimum) != 0
+}
 
-	return length != 0 && c.Steps()[length-1] != minimum.String()
+func (c *Collatz) String() string {
+	return fmt.Sprintf("number: %s, steps: %d, max: %s", c.Number(), len(c.Steps()), c.Steps().MaxStepValue().Value)
+}
+
+func Max(slice []*big.Int) (key int, value string) {
+	if len(slice) == 0 {
+		return key, "-1"
+	}
+
+	key = -1
+	maxVal := big.NewInt(-1)
+
+	for x, y := range slice {
+		comp := y.Cmp(maxVal)
+		if comp > 0 {
+			key = x
+			maxVal = y
+		}
+	}
+
+	return key, maxVal.String()
 }

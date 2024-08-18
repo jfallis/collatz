@@ -1,96 +1,106 @@
 package main
 
 import (
-	"errors"
+	"context"
+	"flag"
 	"fmt"
 	"log/slog"
-	"math/big"
 	"os"
-	"strings"
 
-	"github.com/jfallis/collatz/pkg/math"
+	"github.com/jfallis/collatz/pkg/collatz/extension/bruteforce"
 
-	"github.com/jfallis/collatz/pkg/collatz"
 	"github.com/jfallis/collatz/pkg/collatz/extension"
 
-	"github.com/pterm/pterm"
-	"github.com/pterm/pterm/putils"
+	"github.com/jfallis/collatz/pkg/collatz"
 )
 
-const (
-	errMargin = 15
-)
+const argCount = 2
 
 func main() {
-	handler := pterm.NewSlogHandler(&pterm.DefaultLogger)
-	logger := slog.New(handler)
-	slog.SetDefault(logger)
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+			if a.Key == "time" {
+				return slog.Attr{}
+			}
+			return a
+		},
+	})))
 
-	_ = pterm.DefaultBigText.WithLetters(
-		putils.LettersFromStringWithStyle("Collatz", pterm.FgGreen.ToStyle()),
-	).Render()
+	var (
+		begin, end, size         string
+		steps, logging, printAll bool
+	)
+	bruteforceFlags := flag.NewFlagSet("bruteforce", flag.ExitOnError)
+	bruteforceFlags.StringVar(&begin, "begin", "0", "define the start number")
+	bruteforceFlags.StringVar(&end, "end", "", "define the end number")
+	bruteforceFlags.StringVar(&size, "size", extension.CPUBatchSize(), "set the batch size")
+	bruteforceFlags.BoolVar(&printAll, "print-all", false, "print all steps, recommend logging to be enabled")
+	bruteforceFlags.BoolVar(&logging, "logging", true, "enable or disable logging")
+	bruteforceFlags.BoolVar(&steps, "steps", true, "enable or disable step collection, disable for performance improvement")
 
-	pterm.DefaultHeader.Println("The Collatz Conjecture is the simplest math problem no one can solve \n",
-		"- it is easy enough for almost anyone to understand but notoriously difficult to solve.")
+	var number string
+	seedFlags := flag.NewFlagSet("seed", flag.ExitOnError)
+	seedFlags.StringVar(&number, "number", "", "define seed number")
+	seedFlags.BoolVar(&steps, "steps", true, "enable or disable step collection")
 
-	if len(os.Args) < 3 {
-		printErrMsg("invalid command; example: ./collatz seed 9663 or ./collatz bruteforce 0 100000")
-	}
-
-	sArg2 := new(big.Int)
-	if _, ok := sArg2.SetString(os.Args[2], math.Base); !ok {
-		printErrMsg("Error: Failed to convert string to big.Int")
+	if len(os.Args) < argCount {
+		printUsage(nil)
+		return
 	}
 
 	switch os.Args[1] {
 	case "bruteforce":
-		sArg3 := new(big.Int)
-		if _, ok := sArg3.SetString(os.Args[3], math.Base); !ok {
-			printErrMsg("Error: Failed to convert string to big.Int")
+		if err := bruteforceFlags.Parse(os.Args[argCount:]); err != nil || end == "" {
+			printUsage(bruteforceFlags)
+			return
 		}
 
-		if _, err := extension.Bruteforce(sArg2, sArg3, extension.DefaultBruteforceRoutineBatchLimit(), true); err != nil {
-			var success collatz.SuccessError
-			if errors.As(err, &success) {
-				pterm.DefaultBasicText.Printf("The %s is a lie.\n", pterm.LightMagenta("cake"))
-			}
-
-			printErrMsg(err.Error())
+		ctx := context.Background()
+		if _, err := bruteforce.Run(ctx, bruteforce.Request{
+			Start:      begin,
+			End:        end,
+			BatchSize:  size,
+			Logging:    logging,
+			EnableStep: steps,
+			PrintAll:   printAll,
+		}); err != nil {
+			slog.Error(err.Error())
 		}
-
-		return
 	case "seed":
-		collatzConjecture(sArg2)
+		if err := seedFlags.Parse(os.Args[argCount:]); err != nil || number == "" {
+			printUsage(seedFlags)
+			return
+		}
+
+		collatzConjecture(number, steps)
 	}
 }
 
-func collatzConjecture(n *big.Int) {
+func printUsage(flagSet *flag.FlagSet) {
+	fmt.Println("Collatz Conjecture")
+	fmt.Println("The Collatz Conjecture is the simplest math problem no one can solve " +
+		"- it is easy enough for almost anyone to understand but notoriously difficult to solve.")
+	fmt.Printf("\nUsage:\n")
+	fmt.Println("  collatz seed -number=9663")
+	fmt.Println("  collatz bruteforce -start=0 -end=100000")
+	if flagSet != nil {
+		fmt.Printf("\nOptions:\n")
+		flagSet.PrintDefaults()
+	}
+	fmt.Printf("\nHelp:\n")
+	fmt.Println("  collatz seed [--help | -h]")
+	fmt.Println("  collatz bruteforce [--help | -h]")
+}
+
+func collatzConjecture(n string, steps bool) {
 	c := collatz.New(n)
-	if err := c.Calculate(); err != nil {
-		printErrMsg(err.Error(), 1)
+	if err := c.Calculate(steps); err != nil {
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
-	bulletListItems := []pterm.BulletListItem{
-		{Level: 0, Text: fmt.Sprintf("%s %d", pterm.LightMagenta("Total steps:"), len(c.Steps()))},
-		{Level: 0, Text: fmt.Sprintf("%s %s", pterm.LightMagenta("Collatz sequence:"), func(steps []string) string {
-			return strings.Join(steps, ", ")
-		}(c.Steps()))},
-		{Level: 0, Text: fmt.Sprintf("%s %t", pterm.LightMagenta("Success:"), c.Success())},
+	slog.Info(c.String())
+	if steps {
+		slog.Info(fmt.Sprintf("Collatz sequence: %s", c.Steps().String()))
 	}
-
-	_ = pterm.DefaultBulletList.WithItems(bulletListItems).Render()
-	pterm.Println()
-}
-
-func printErrMsg(str string, newline ...int) {
-	pterm.DefaultHeader.WithMargin(errMargin).
-		WithBackgroundStyle(pterm.NewStyle(pterm.BgRed)).
-		WithTextStyle(pterm.NewStyle(pterm.FgLightWhite)).
-		Println(str)
-
-	for i := 0; i < len(newline); i++ {
-		pterm.Println()
-	}
-
-	os.Exit(1)
 }

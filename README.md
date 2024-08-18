@@ -20,13 +20,13 @@ These instructions will get you a copy of the project up and running on your loc
 ![seed screenshot](/readme/screenshot_seed.png)
 
 ```bash
-./collatz seed <number>
+./collatz seed -number=<number>
 ```
 - Replace `<number>` with the number you want to calculate the Collatz Conjecture.
 
 Example:
 ```bash
-./collatz seed 27
+./collatz seed -number=27
 ```
 
 ### Bruteforce Calculate the Collatz Conjecture
@@ -35,7 +35,7 @@ Example:
 
 
 ```bash
-./collatz bruteforce <start_number> <end_number>
+./collatz bruteforce begin=<start_number> end=<end_number>
 ```
 
 - Replace `<start_number>` with the number you want to start the sequence from.
@@ -43,16 +43,27 @@ Example:
 
 Example:
 ```bash
-./collatz bruteforce 0 1234567890
+./collatz bruteforce begin=0 end=1234567890
+```
+
+```bash
+./collatz bruteforce -end=1000000 -print-all | sed -E 's/level=INFO msg="([^"]+)"/\1/' | sed -E 's/number: ([0-9]+), steps: ([0-9]+), max: ([0-9]+)/\1,\2,\3/' > example.txt
+```
+
+### Help
+More options can be found by running the following command:
+
+```bash
+./collatz --help
 ```
 
 ### Prerequisites
 
-- Go version 1.22 or higher
+- Go version 1.23 or higher
 
 ## Installation
 
-1. Ensure you have Go version 1.22 or higher installed on your machine.
+1. Ensure you have Go version 1.23 or higher installed on your machine.
 1. Clone the repository to your local machine.
 1. Navigate to the project directory.
 1. Run `go mod download` to download the necessary dependencies.

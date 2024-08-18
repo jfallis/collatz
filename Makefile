@@ -21,6 +21,7 @@ vendor: ## Install the dependencies
 	$(GOCMD) mod vendor
 
 build: vendor lint test ## Build the project and put the output binary
+	rm $(BINARY_NAME).zip
 	GOOS=windows GOARCH=amd64 go build -o $(BINARY_DIR)/$(BINARY_NAME)-windows.exe
 	GOOS=darwin GOARCH=amd64 go build -o $(BINARY_DIR)/$(BINARY_NAME)-amd64-macos
 	GOOS=darwin GOARCH=arm64 go build -o $(BINARY_DIR)/$(BINARY_NAME)-arm64-macos
