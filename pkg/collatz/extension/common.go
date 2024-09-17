@@ -1,14 +1,11 @@
 package extension
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"runtime"
 	"strconv"
 	"sync"
-
-	"github.com/jfallis/collatz/pkg/collatz"
 )
 
 const (
@@ -36,11 +33,6 @@ func CPUBatchSize() string {
 func WaitErrHandling(err error) error {
 	if err == nil {
 		return nil
-	}
-
-	var success collatz.SuccessError
-	if errors.As(err, &success) {
-		return fmt.Errorf("successfully found the number %w", err)
 	}
 
 	return fmt.Errorf("routine failed: %w", err)

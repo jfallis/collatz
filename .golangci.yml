@@ -89,7 +89,6 @@ linters:
     - dupl
     - errcheck
     - errorlint
-    - exportloopref
     - funlen
     - gocheckcompilerdirectives
     - gochecknoinits

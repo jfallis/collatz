@@ -3,12 +3,14 @@ package bruteforce_test
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"log/slog"
 	"math/big"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/jfallis/collatz/pkg/collatz"
 
 	"github.com/jfallis/collatz/pkg/collatz/extension"
 
@@ -19,18 +21,18 @@ import (
 func TestCtxDone(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	cancel()
 
 	_, err := bruteforce.Run(ctx, bruteforce.Request{
-		Start:      "0",
-		End:        "1000",
-		BatchSize:  "10",
-		EnableStep: true,
+		Start:     "1",
+		End:       "1000",
+		BatchSize: "10",
 	})
 
 	assert.Error(t, err)
-	assert.Equal(t, fmt.Errorf("routine failed: %w", context.Canceled), err)
+	assert.ErrorAs(t, err, &context.DeadlineExceeded)
+	assert.ErrorAs(t, err, &collatz.SuccessError{})
 }
 
 func TestInvalidArguments(t *testing.T) {

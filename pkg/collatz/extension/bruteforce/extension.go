@@ -5,11 +5,16 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"time"
 
 	"github.com/jfallis/collatz/pkg/collatz/extension"
 
 	"github.com/jfallis/collatz/pkg/collatz"
 	"golang.org/x/sync/errgroup"
+)
+
+const (
+	routineTimeout = 1 * time.Minute
 )
 
 var (
@@ -33,7 +38,7 @@ type Results struct {
 }
 
 func Run(ctx context.Context, request Request) (*Results, error) {
-	req, err := bruteforceHandler(request)
+	req, err := handler(request)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +51,11 @@ func Run(ctx context.Context, request Request) (*Results, error) {
 		isBreakPoint := new(big.Int).Mod(new(big.Int).Add(x, one), req.breakPoint).Cmp(zero) == 0
 		number := new(big.Int).Add(x, one)
 		errGroup.Go(func() error {
-			return routine(ctx, sem, number, isBreakPoint, request)
+			routineCtx, cancel := context.WithTimeout(ctx, routineTimeout)
+			defer cancel()
+
+			col := collatz.New(number.String())
+			return routine(routineCtx, sem, col, isBreakPoint, request)
 		})
 	}
 
@@ -61,7 +70,7 @@ type RequestValues struct {
 	start, end, batchSize, breakPoint *big.Int
 }
 
-func bruteforceHandler(request Request) (*RequestValues, error) {
+func handler(request Request) (*RequestValues, error) {
 	start, ok := new(big.Int).SetString(request.Start, collatz.Base)
 	if !ok {
 		return nil, fmt.Errorf("failed to set start value: %s", request.Start)
@@ -99,17 +108,16 @@ func bruteforceHandler(request Request) (*RequestValues, error) {
 	}, nil
 }
 
-func routine(ctx context.Context, sem chan struct{}, number *big.Int, breakPoint bool, request Request) error {
+func routine(ctx context.Context, sem chan struct{}, col *collatz.Collatz, breakPoint bool, request Request) error {
 	sem <- struct{}{}
 	defer func() { <-sem }()
 
-	col := collatz.New(number.String())
-	if err := col.Calculate(request.EnableStep && breakPoint); err != nil {
+	if err := col.CalculateWithContext(ctx, request.EnableStep && breakPoint); err != nil {
 		return fmt.Errorf("routine error: %w", err)
 	}
 
 	if col.Success() {
-		return collatz.SuccessError{String: col.String()}
+		return collatz.NewSuccessErr(col.String())
 	}
 
 	if request.Logging && breakPoint {

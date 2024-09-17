@@ -29,14 +29,14 @@ func TestWaitErrHandling(t *testing.T) {
 			expectedErr: "routine failed: some error",
 		},
 		"success error": {
-			inputErr:    collatz.SuccessError{String: "success error message"},
-			expectedErr: "successfully found the number You found an infinite loop 🎉 - success error message",
+			inputErr:    collatz.NewSuccessErr("success error message"),
+			expectedErr: "routine failed: 🎉 did you solve the collatz conjecture: success error message",
 		},
 		"wrapped success error": {
 			inputErr: fmt.Errorf("[wrapped error message] %w",
-				collatz.SuccessError{String: "success error message"},
+				collatz.NewSuccessErr("success error message"),
 			),
-			expectedErr: "successfully found the number [wrapped error message] You found an infinite loop 🎉 - success error message",
+			expectedErr: "routine failed: [wrapped error message] 🎉 did you solve the collatz conjecture: success error message",
 		},
 	}
 

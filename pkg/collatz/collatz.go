@@ -6,18 +6,17 @@
 package collatz
 
 import (
+	"context"
 	"fmt"
 	"math/big"
-	"os"
 	"sync"
 )
 
 const (
-	SuccessMsg = "You found an infinite loop 🎉"
-	SeqOne     = 4
-	SeqTwo     = 2
-	SeqThree   = 1
-	Base       = 10
+	SeqOne   = 4
+	SeqTwo   = 2
+	SeqThree = 1
+	Base     = 10
 )
 
 var (
@@ -56,17 +55,24 @@ func ErrInvalidNumber() error {
 
 // SuccessError is a custom error type that is returned when the Collatz Conjecture problem is successfully solved.
 type SuccessError struct {
-	String string
+	Num string
+}
+
+func NewSuccessErr(s string) SuccessError {
+	return SuccessError{Num: s}
 }
 
 // Error method for the SuccessError type.
-func (e SuccessError) Error() string {
-	return fmt.Sprintf("%s - %s", SuccessMsg, e.String)
+func (n SuccessError) Error() string {
+	return fmt.Sprintf("🎉 did you solve the collatz conjecture: %s", n.Num)
 }
 
 type Collatz struct {
-	number string
-	steps  Steps
+	number           string
+	seq              *big.Int
+	err              error
+	steps            Steps
+	calculateStarted bool
 }
 
 func New(num string) *Collatz {
@@ -76,20 +82,31 @@ func New(num string) *Collatz {
 	}
 }
 
+func (c *Collatz) Err() error {
+	err := c.err
+	return err
+}
+
 func (c *Collatz) Calculate(enableSteps bool) error {
+	return c.CalculateWithContext(context.Background(), enableSteps)
+}
+
+func (c *Collatz) CalculateWithContext(ctx context.Context, enableSteps bool) error {
 	defer func() {
+		if c.calculateStarted && c.seq.Cmp(minimum) != 0 {
+			c.err = NewSuccessErr(c.number)
+		}
 		if r := recover(); r != nil {
-			fmt.Printf("Panic: %s\n", c.String())
-			fmt.Printf("Recover message: %+v\n", r)
-			os.Exit(1)
+			c.err = fmt.Errorf("%s: %w", r, c.err)
 		}
 	}()
 
-	num, ok := new(big.Int).SetString(c.number, Base)
+	var ok bool
+	c.seq, ok = new(big.Int).SetString(c.number, Base)
 	if !ok {
 		return ErrInvalidNumber()
 	}
-	numberComparison := num.Cmp(minimum)
+	numberComparison := c.seq.Cmp(minimum)
 	if numberComparison < 0 {
 		return ErrInvalidNumber()
 	}
@@ -99,25 +116,31 @@ func (c *Collatz) Calculate(enableSteps bool) error {
 		return nil
 	}
 
-	for num.Cmp(minimum) != 0 {
-		c.Sequence(num)
+	c.calculateStarted = true
 
-		if enableSteps {
-			c.steps = append(c.steps, new(big.Int).Set(num))
+	for c.seq.Cmp(minimum) != 0 {
+		select {
+		case <-ctx.Done():
+			return NewSuccessErr(c.number)
+		default:
+			c.sequence()
+			if enableSteps {
+				c.steps = append(c.steps, new(big.Int).Set(c.seq))
+			}
 		}
 	}
 
 	return nil
 }
 
-func (c *Collatz) Sequence(val *big.Int) {
-	if val.Bit(0) == 0 {
-		val.Rsh(val, 1)
+func (c *Collatz) sequence() {
+	if c.seq.Bit(0) == 0 {
+		c.seq.Rsh(c.seq, 1)
 		return
 	}
 
-	val.Mul(val, multiplication)
-	val.Add(val, increment)
+	c.seq.Mul(c.seq, multiplication)
+	c.seq.Add(c.seq, increment)
 }
 
 func (c *Collatz) Number() string {
@@ -148,12 +171,11 @@ func (s Steps) MaxStepValue() KeyValue {
 }
 
 func (c *Collatz) Success() bool {
-	length := len(c.Steps())
-	return length != 0 && c.Steps()[length-1].Cmp(minimum) != 0
+	return c.calculateStarted && c.seq.Cmp(minimum) != 0
 }
 
 func (c *Collatz) String() string {
-	return fmt.Sprintf("number: %s, steps: %d, max: %s", c.Number(), len(c.Steps()), c.Steps().MaxStepValue().Value)
+	return fmt.Sprintf("number: %s, steps: %d, max: %s, success: %t", c.Number(), len(c.Steps()), c.Steps().MaxStepValue().Value, c.Success())
 }
 
 func Max(slice []*big.Int) (key int, value string) {

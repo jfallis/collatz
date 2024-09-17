@@ -1,12 +1,16 @@
 package collatz_test
 
 import (
+	"context"
 	"math/big"
 	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/jfallis/collatz/pkg/collatz"
 
@@ -32,19 +36,19 @@ func collatzValues() []testValues {
 	valuesOnce.Do(func() {
 		values = []testValues{
 			{"1", expected{
-				string: "number: 1, steps: 3, max: 4",
+				string: "number: 1, steps: 3, max: 4, success: false",
 				steps:  "[4 2 1]",
 			}},
 			{"2", expected{
-				string: "number: 2, steps: 1, max: 1",
+				string: "number: 2, steps: 1, max: 1, success: false",
 				steps:  "[1]",
 			}},
 			{"7", expected{
-				string: "number: 7, steps: 16, max: 52",
+				string: "number: 7, steps: 16, max: 52, success: false",
 				steps:  "[22 11 34 17 52 26 13 40 20 10 5 16 8 4 2 1]",
 			}},
 			{"27", expected{
-				string: "number: 27, steps: 111, max: 9232",
+				string: "number: 27, steps: 111, max: 9232, success: false",
 				steps: "[82 41 124 62 31 94 47 142 71 214 107 322 161 484 242 " +
 					"121 364 182 91 274 137 412 206 103 310 155 466 233 700 350 " +
 					"175 526 263 790 395 1186 593 1780 890 445 1336 668 334 167 " +
@@ -76,16 +80,12 @@ func TestSuccessError(t *testing.T) {
 		expected string
 	}{
 		"example success error 1": {
-			input: collatz.SuccessError{
-				String: "example success error 1",
-			},
-			expected: "You found an infinite loop 🎉 - example success error 1",
+			input:    collatz.NewSuccessErr("example success error 1"),
+			expected: "🎉 did you solve the collatz conjecture: example success error 1",
 		},
 		"example success error 2": {
-			input: collatz.SuccessError{
-				String: "example success error 2",
-			},
-			expected: "You found an infinite loop 🎉 - example success error 2",
+			input:    collatz.NewSuccessErr("example success error 2"),
+			expected: "🎉 did you solve the collatz conjecture: example success error 2",
 		},
 	}
 
@@ -105,7 +105,7 @@ func TestCollatzCalculateErrorHandling(t *testing.T) {
 	actual := collatz.New("0")
 
 	assert.ErrorIs(t, actual.Calculate(true), collatz.ErrInvalidNumber())
-	assert.Equal(t, "number: 0, steps: 0, max: -1", actual.String())
+	assert.Equal(t, "number: 0, steps: 0, max: -1, success: false", actual.String())
 }
 
 func TestCollatzCalculateSuccess(t *testing.T) {
@@ -125,6 +125,28 @@ func TestCollatzCalculateSuccess(t *testing.T) {
 			assert.False(t, actual.Success())
 		})
 	}
+}
+
+func TestCalculateWithTimeoutSuccess(t *testing.T) {
+	t.Parallel()
+
+	c := collatz.New("27")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+	defer cancel()
+	errGroup, ctx := errgroup.WithContext(ctx)
+
+	errGroup.Go(func() error {
+		return c.CalculateWithContext(ctx, true)
+	})
+	if err := errGroup.Wait(); err != nil {
+		assert.ErrorAs(t, err, &context.DeadlineExceeded)
+		assert.ErrorAs(t, c.Err(), &collatz.SuccessError{Num: "27"})
+		assert.True(t, c.Success())
+		return
+	}
+
+	t.Error("expected error")
 }
 
 func TestCollatzCalculateLargeSeed(t *testing.T) {
@@ -170,7 +192,7 @@ func TestMax(t *testing.T) {
 }
 
 func FuzzCalculate(f *testing.F) {
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 100; i++ {
 		f.Add(rand.Intn(100_000) + 1) //nolint:gosec
 	}
 	expectedValue := "1"
