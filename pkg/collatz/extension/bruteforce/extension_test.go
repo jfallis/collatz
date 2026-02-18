@@ -4,24 +4,22 @@ import (
 	"bytes"
 	"context"
 	"log/slog"
-	"math/big"
+	"math/rand"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/jfallis/collatz/pkg/collatz"
-
-	"github.com/jfallis/collatz/pkg/collatz/extension"
-
 	"github.com/jfallis/collatz/pkg/collatz/extension/bruteforce"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCtxDone(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
 	cancel()
 
 	_, err := bruteforce.Run(ctx, bruteforce.Request{
@@ -30,9 +28,11 @@ func TestCtxDone(t *testing.T) {
 		BatchSize: "10",
 	})
 
-	assert.Error(t, err)
-	assert.ErrorAs(t, err, &context.DeadlineExceeded)
-	assert.ErrorAs(t, err, &collatz.SuccessError{})
+	require.Error(t, err)
+	deadline, ok := ctx.Deadline()
+	assert.True(t, ok)
+	assert.WithinDuration(t, time.Now(), deadline, time.Second)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
 func TestInvalidArguments(t *testing.T) {
@@ -43,165 +43,104 @@ func TestInvalidArguments(t *testing.T) {
 		expectedError         string
 	}{
 		"invalid start value": {
-			start:         "invalid",
-			end:           "10",
-			batchSize:     "10",
+			start: "invalid", end: "10", batchSize: "10",
 			expectedError: "failed to set start value: invalid",
 		},
 		"empty start value": {
-			start:         "",
-			end:           "10",
-			batchSize:     "10",
+			start: "", end: "10", batchSize: "10",
 			expectedError: "failed to set start value: ",
 		},
+		"zero end value": {
+			start: "1", end: "0", batchSize: "10",
+			expectedError: "failed to set end value: 0",
+		},
 		"invalid end value": {
-			start:         "0",
-			end:           "invalid",
-			batchSize:     "10",
+			start: "1", end: "invalid", batchSize: "10",
 			expectedError: "failed to set end value: invalid",
 		},
 		"empty end value": {
-			start:         "0",
-			end:           "",
-			batchSize:     "10",
+			start: "1", end: "", batchSize: "10",
 			expectedError: "failed to set end value: ",
 		},
+		"zero batch size value": {
+			start: "1", end: "10", batchSize: "0",
+			expectedError: "failed to set batch size value: 0",
+		},
 		"invalid batch size value": {
-			start:         "0",
-			end:           "10",
-			batchSize:     "invalid",
+			start: "1", end: "10", batchSize: "invalid",
 			expectedError: "failed to set batch size value: invalid",
 		},
 		"empty batch size value": {
-			start:         "0",
-			end:           "10",
-			batchSize:     "",
+			start: "1", end: "10", batchSize: "",
 			expectedError: "failed to set batch size value: ",
 		},
 		"invalid difference": {
-			start:         "10",
-			end:           "10",
-			batchSize:     "10",
+			start: "10", end: "10", batchSize: "10",
 			expectedError: "difference between start and end must be greater than 0",
 		},
 	}
 
-	for name, tc := range testCases {
+	for name, testcase := range testCases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
 			_, err := bruteforce.Run(context.Background(), bruteforce.Request{
-				Start:      tc.start,
-				End:        tc.end,
-				BatchSize:  tc.batchSize,
-				EnableStep: true,
+				Start:       testcase.start,
+				End:         testcase.end,
+				BatchSize:   testcase.batchSize,
+				EnableSteps: true,
 			})
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), tc.expectedError)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), testcase.expectedError)
 		})
 	}
 }
 
-func TestDefaultBatchSize(t *testing.T) {
+func TestBruteforceVariousBatchSizes(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, big.NewInt(1000), extension.DefaultBatchSize())
-}
-
-func TestBruteforce(t *testing.T) {
 	type expected struct {
 		number string
 		logs   []string
 	}
 	testCases := map[string]struct {
-		expected
+		expected      expected
 		maxBatchCount string
 	}{
-		"start value 5, maxBatchCount 10": {
-			expected{
-				number: "5",
-				logs: []string{
-					"number: 1, steps: 3",
-					"number: 2, steps: 1",
-					"number: 3, steps: 7",
-					"number: 4, steps: 2",
-					"number: 5, steps: 5",
-				},
-			},
-			"10",
-		},
-		"start value 5, maxBatchCount 5": {
-			expected{
-				number: "5",
-				logs: []string{
-					"number: 1, steps: 3",
-					"number: 2, steps: 1",
-					"number: 3, steps: 7",
-					"number: 4, steps: 2",
-					"number: 5, steps: 5",
-				},
-			},
-			"5",
-		},
-		"start value 10, maxBatchCount 2": {
-			expected{
-				number: "10",
-				logs: []string{
-					"number: 1, steps: 3",
-					"number: 2, steps: 1",
-					"number: 3, steps: 7",
-					"number: 4, steps: 2",
-					"number: 5, steps: 5",
-					"number: 6, steps: 8",
-					"number: 7, steps: 16",
-					"number: 8, steps: 3",
-					"number: 9, steps: 19",
-					"number: 10, steps: 6",
-				},
-			},
-			"2",
-		},
-		"start value 10, maxBatchCount 3": {
-			expected{
-				number: "10",
-				logs: []string{
-					"number: 1, steps: 3",
-					"number: 2, steps: 1",
-					"number: 3, steps: 7",
-					"number: 4, steps: 2",
-					"number: 5, steps: 5",
-					"number: 6, steps: 8",
-					"number: 7, steps: 16",
-					"number: 8, steps: 3",
-					"number: 9, steps: 19",
-					"number: 10, steps: 6",
-				},
-			},
-			"3",
-		},
+		"start value 5, maxBatchCount 10": {maxBatchCount: "10", expected: expected{number: "5", logs: []string{
+			"number: 1, steps: 3", "number: 2, steps: 1", "number: 3, steps: 7", "number: 4, steps: 2", "number: 5, steps: 5",
+		}}},
+		"start value 5, maxBatchCount 5": {maxBatchCount: "5", expected: expected{number: "5", logs: []string{
+			"number: 1, steps: 3", "number: 2, steps: 1", "number: 3, steps: 7", "number: 4, steps: 2", "number: 5, steps: 5",
+		}}},
+		"start value 10, maxBatchCount 2": {maxBatchCount: "2", expected: expected{number: "10", logs: []string{
+			"number: 1, steps: 3", "number: 2, steps: 1", "number: 3, steps: 7", "number: 4, steps: 2", "number: 5, steps: 5",
+			"number: 6, steps: 8", "number: 7, steps: 16", "number: 8, steps: 3", "number: 9, steps: 19", "number: 10, steps: 6",
+		}}},
+		"start value 10, maxBatchCount 3": {maxBatchCount: "3", expected: expected{number: "10", logs: []string{
+			"number: 1, steps: 3", "number: 2, steps: 1", "number: 3, steps: 7", "number: 4, steps: 2", "number: 5, steps: 5",
+			"number: 6, steps: 8", "number: 7, steps: 16", "number: 8, steps: 3", "number: 9, steps: 19", "number: 10, steps: 6",
+		}}},
 	}
 
-	for name, tc := range testCases {
+	for name, testCase := range testCases {
+		testCase := testCase
 		t.Run(name, func(t *testing.T) {
-			var buf bytes.Buffer
+			t.Parallel()
 
+			var buf bytes.Buffer
 			logger := slog.New(slog.NewTextHandler(&buf, nil))
-			slog.SetDefault(logger)
 
 			actual, err := bruteforce.Run(context.Background(), bruteforce.Request{
-				Start:      "0",
-				End:        tc.expected.number,
-				BatchSize:  tc.maxBatchCount,
-				Logging:    true,
-				EnableStep: true,
+				Start: "0", End: testCase.expected.number, BatchSize: testCase.maxBatchCount, Logger: logger, EnableSteps: true,
 			})
 
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expected.number, actual.Number)
+			require.NoError(t, err)
+			assert.Equal(t, testCase.expected.number, actual.Num)
 			assert.NotEmpty(t, buf.String())
 
-			assert.Len(t, tc.expected.logs, strings.Count(buf.String(), "\n"))
-			for _, expectedLog := range tc.expected.logs {
+			assert.Len(t, testCase.expected.logs, strings.Count(buf.String(), "\n"))
+			for _, expectedLog := range testCase.expected.logs {
 				assert.Contains(t, buf.String(), expectedLog)
 			}
 		})
@@ -209,45 +148,69 @@ func TestBruteforce(t *testing.T) {
 }
 
 func TestLargeStepCount(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
-	slog.SetDefault(logger)
-
 	actual, err := bruteforce.Run(context.Background(), bruteforce.Request{
-		Start:      "0",
-		End:        "30",
-		BatchSize:  "1",
-		Logging:    true,
-		EnableStep: true,
+		Start:       "0",
+		End:         "30",
+		BatchSize:   "1",
+		Logger:      logger,
+		EnableSteps: true,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Equal(t, "30", actual.Number)
+	assert.Equal(t, "30", actual.Num)
 	assert.NotEmpty(t, buf.String())
 	assert.Contains(t, buf.String(), "number: 27, steps: 111")
 }
 
 func BenchmarkWithStepsEnabled(b *testing.B) {
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 1; i < b.N; i++ {
 		_, err := bruteforce.Run(context.Background(), bruteforce.Request{
-			Start: "0",
-			End:   "1000", BatchSize: strconv.Itoa(1000 / 10),
-			EnableStep: true,
+			Start:       strconv.Itoa(i),
+			End:         strconv.Itoa(i * 1000),
+			BatchSize:   strconv.Itoa(1000 / 10),
+			EnableSteps: true,
 		})
 		assert.NoError(b, err)
 	}
 }
 
 func BenchmarkWithoutStepsEnabled(b *testing.B) {
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 1; i < b.N; i++ {
 		_, err := bruteforce.Run(context.Background(), bruteforce.Request{
-			Start: "0",
-			End:   "1000", BatchSize: strconv.Itoa(1000 / 10),
+			Start:       strconv.Itoa(i),
+			End:         strconv.Itoa(i * 1000),
+			BatchSize:   strconv.Itoa(1000 / 10),
+			EnableSteps: false,
 		})
+
 		assert.NoError(b, err)
 	}
+}
+
+func FuzzBruteforce(f *testing.F) {
+	for i := 0; i < 100; i++ {
+		f.Add(rand.Intn(100_000)+1, rand.Intn(100_000)+1, rand.Intn(100_000)+1) //nolint:gosec
+	}
+	f.Fuzz(func(t *testing.T, start, end, batchSize int) {
+		defer func() {
+			if r := recover(); r != nil {
+				buf := make([]byte, 4096)
+				n := runtime.Stack(buf, false)
+				t.Logf("start: %d, end: %d, batchSize: %d\n", start, end, batchSize)
+				t.Logf("Stack trace:\n%s\n", buf[:n])
+				t.Errorf("panic: %v\n", r)
+			}
+		}()
+
+		_, _ = bruteforce.Run(context.Background(), bruteforce.Request{
+			Start:       strconv.Itoa(start),
+			End:         strconv.Itoa(end),
+			BatchSize:   strconv.Itoa(batchSize),
+			EnableSteps: false,
+		})
+	})
 }

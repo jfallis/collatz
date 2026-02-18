@@ -6,11 +6,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/jfallis/collatz/pkg/collatz/extension"
-
 	"github.com/jfallis/collatz/pkg/collatz"
-
+	"github.com/jfallis/collatz/pkg/collatz/extension"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWaitErrHandling(t *testing.T) {
@@ -40,18 +39,18 @@ func TestWaitErrHandling(t *testing.T) {
 		},
 	}
 
-	for name, tc := range testCases {
+	for name, testcase := range testCases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			err := extension.WaitErrHandling(tc.inputErr)
-			if tc.expectedErr == "" {
-				assert.NoError(t, err)
+			err := extension.WaitErrHandling(testcase.inputErr)
+			if testcase.expectedErr == "" {
+				require.NoError(t, err)
 				return
 			}
 
-			assert.Error(t, err)
-			assert.Equal(t, tc.expectedErr, err.Error())
+			require.Error(t, err)
+			assert.Equal(t, testcase.expectedErr, err.Error())
 		})
 	}
 }
@@ -60,6 +59,6 @@ func TestCPUBatchSize(t *testing.T) {
 	t.Parallel()
 
 	cpu, err := strconv.Atoi(extension.CPUBatchSize())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.GreaterOrEqual(t, cpu, 100)
 }

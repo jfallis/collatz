@@ -1,35 +1,25 @@
+// Package extension Common utilities for the collatz extension.
 package extension
 
 import (
 	"fmt"
-	"math/big"
 	"runtime"
 	"strconv"
-	"sync"
 )
 
 const (
-	CPUMultiplier       = 100
-	DefaultBatchSizeInt = 1000
+	// CPUMultiplier defines the multiplier for the number of CPU cores to determine the batch size.
+	CPUMultiplier = 100
+	// DefaultBatchSize defines the default batch size if not set.
+	DefaultBatchSize = 100
 )
 
-var (
-	defaultBatchSize     *big.Int
-	defaultBatchSizeOnce sync.Once
-)
-
-func DefaultBatchSize() *big.Int {
-	defaultBatchSizeOnce.Do(func() {
-		defaultBatchSize = big.NewInt(DefaultBatchSizeInt)
-	})
-
-	return defaultBatchSize
-}
-
+// CPUBatchSize returns the batch size based on the number of CPU cores and a predefined multiplier.
 func CPUBatchSize() string {
 	return strconv.Itoa(runtime.NumCPU() * CPUMultiplier)
 }
 
+// WaitErrHandling handles errors from goroutines, wrapping them with additional context if necessary.
 func WaitErrHandling(err error) error {
 	if err == nil {
 		return nil

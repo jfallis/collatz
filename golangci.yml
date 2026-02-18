@@ -1,0 +1,180 @@
+version: "2"
+
+linters:
+  enable:
+    - contextcheck
+    - cyclop
+    - dogsled
+    - dupl
+    - errcheck
+    - errorlint
+    - forbidigo
+    - funlen
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognit
+    - gocritic
+    - gocyclo
+    - godot
+    - godox
+    - gosec
+    - govet
+    - importas
+    - ineffassign
+    - lll
+    - misspell
+    - mnd
+    - nakedret
+    - nestif
+    - nolintlint
+    - paralleltest
+    - prealloc
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
+    - staticcheck
+    - tagalign
+    - tagliatelle
+    - testableexamples
+    - testifylint
+    - thelper
+    - tparallel
+    - unparam
+    - unused
+    - varnamelen
+    - wrapcheck
+  disable:
+    - bidichk
+    - bodyclose
+    - depguard
+    - embeddedstructfieldcheck
+    - iface
+    - interfacebloat
+    - intrange
+    - ireturn
+    - loggercheck
+    - maintidx
+    - makezero
+    - mirror
+    - perfsprint
+    - predeclared
+    - promlinter
+    - protogetter
+    - reassign
+    - recvcheck
+    - sloglint
+    - spancheck
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - whitespace
+    - wsl
+    - wsl_v5
+    - zerologlint
+linters-settings:
+  gochecknoglobals:
+    allow:
+      - ^err.*
+      - ^Err.*
+  forbidigo:
+    forbid:
+      - pattern: ".*func.*\\(.*\\).*\\{.*\\1.*\\}"
+        message: "recursion is not allowed (Contributing.md §1)"
+      - pattern: "//.*This function"
+        message: "Comments should explain *why*, not repeat *what* (Contributing.md §10)"
+      - pattern: "goto"
+        message: "goto is forbidden (Contributing.md §1)"
+      - pattern: "reflect."
+        message: "reflection is forbidden in critical paths (Contributing.md §3)"
+      - pattern: "runtime.Goexit"
+        message: "manual goroutine termination discouraged"
+      - pattern: "unsafe."
+        message: "unsafe is forbidden except in isolated reviewed packages (Contributing.md §3)"
+  funlen:
+    lines: 60
+    statements: 40
+  gocyclo:
+    min-complexity: 10
+  gocognit:
+    min-complexity: 10
+  revive:
+    ignore-generated-header: true
+    severity: warning
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: doc-comments
+      - name: error-naming
+      - name: error-return
+      - name: exported
+      - name: function-length
+      - name: if-return
+      - name: import-shadowing
+      - name: indent-error-flow
+      - name: package-comments
+      - name: package-name
+        arguments: [ "util", "helper", "common" ]
+      - name: range-loop
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: var-naming
+  lll:
+    line-length: 80
+    tab-width: 2
+    exclude-patterns:
+      - "^//go:generate "
+  prealloc:
+    simple: true
+    range-loops: true
+  varnamelen:
+    min-name-length: 2
+    check-receiver: true
+    check-return: true
+    check-type-param: true
+    ignore-type-assert-ok: true
+    ignore-map-index-ok: true
+    ignore-chan-recv-ok: true
+    ignore-names:
+      - err
+    ignore-decls:
+      - c echo.Context
+      - t testing.T
+      - e error
+      - i int
+      - T any
+      - m map[string]int
+  errorlint:
+    errorf: true
+    wrap: true
+exclusions:
+  generated: strict
+  warn-unused: true
+  presets:
+    - comments
+    - common-false-positives
+    - legacy
+    - std-error-handling
+  rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - errcheck
+        - gocyclo
+        - gosec
+    - path-except: _test\.go
+      linters:
+        - forbidigo
+    - path: internal/hmac/
+      text: "weak cryptographic primitive"
+      linters:
+        - gosec
+    - linters:
+        - lll
+      source: "^//go:generate "
+  paths:
+    - ".*\\.my\\.go$"
+    - lib/bad.go
+  paths-except:
+    - ".*\\.my\\.go$"
+    - lib/bad.go

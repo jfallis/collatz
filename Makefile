@@ -20,7 +20,7 @@ all: help
 vendor: ## Install the dependencies
 	$(GOCMD) mod vendor
 
-build: vendor lint test ## Build the project and put the output binary
+build: vendor lint test bench ## Build the project and put the output binary
 	rm $(BINARY_NAME).zip
 	GOOS=windows GOARCH=amd64 go build -o $(BINARY_DIR)/$(BINARY_NAME)-windows.exe
 	GOOS=darwin GOARCH=amd64 go build -o $(BINARY_DIR)/$(BINARY_NAME)-amd64-macos
@@ -35,7 +35,8 @@ clean: ## Remove build related files
 
 ## Test:
 lint: ## golang linting
-	golangci-lint run
+	go vet ./...
+	golangci-lint run --config golangci.yml ./...
 
 test: ## Run the tests
 ifeq ($(EXPORT_RESULT), true)
@@ -44,8 +45,12 @@ ifeq ($(EXPORT_RESULT), true)
 endif
 	$(GOTEST) -v -race ./... $(OUTPUT_OPTIONS)
 
+fuzz: ## Run the fuzz tests
+	$(GOTEST) -fuzz Fuzz -fuzztime 30s ./pkg/collatz/extension/bruteforce/extension_test.go
+	$(GOTEST) -fuzz Fuzz -fuzztime 30s ./pkg/collatz/collatz_test.go
+
 bench: ## Run the benchmarks
-	$(GOTEST) -v -bench=. ./...
+	$(GOTEST) ./... -bench . -run ^$
 
 coverage: ## Run the tests and export the coverage
 	$(GOTEST) -cover -coverprofile=profile.cov ./...

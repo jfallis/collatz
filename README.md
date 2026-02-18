@@ -4,6 +4,10 @@ This project is a Go application that attempts to solve the Collatz Conjecture u
 
 The calculation utilises `big.Int` and can represent integers as large as can fit in your computer's memory. There is no theoretical limit to the size of a `big.Int` number, the limit is only practical and depends on the amount of memory your computer has.
 
+## Contributing
+
+Please see [`CONTRIBUTING.md`](CONTRIBUTING.md) for guidelines on how to contribute to this project.
+
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
